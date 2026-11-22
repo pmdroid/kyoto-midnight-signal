@@ -1,0 +1,46 @@
+const path=require('node:path');
+const fs=require('node:fs');
+const output=process.env.KYOTO_TEST_OUTPUT || path.join(__dirname,'..','build','test-artifacts');
+fs.mkdirSync(output,{recursive:true});
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+ const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']});
+ const context=await browser.newContext({viewport:{width:1280,height:800}});
+ await context.addInitScript(()=>{
+  window.testPad={id:'Xbox 360 Controller (STANDARD GAMEPAD)',index:0,connected:true,mapping:'standard',timestamp:0,axes:[0,0,0,0],buttons:Array.from({length:17},()=>({pressed:false,touched:false,value:0}))};
+  Object.defineProperty(navigator,'getGamepads',{value:()=>{window.testPad.timestamp=performance.now();return [window.testPad,null,null,null];}});
+  window.connectPad=()=>{const e=new Event('gamepadconnected');Object.defineProperty(e,'gamepad',{value:window.testPad});dispatchEvent(e);};
+ });
+ const page=await context.newPage();const errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+ const phase=async(p)=>{await page.waitForFunction(p=>window.__kyoto?.phase===p,p,{timeout:12000});};
+ const button=async(i)=>{await page.evaluate(i=>{testPad.buttons[i]={pressed:true,touched:true,value:1}},i);await page.waitForTimeout(220);await page.evaluate(i=>{testPad.buttons[i]={pressed:false,touched:false,value:0}},i);await page.waitForTimeout(200);};
+ // 1536x1024 design is letterboxed to 1200x800 with 40px horizontal margins.
+ const walk=async(x,y)=>{await page.mouse.click(40+x*800/1024,y*800/1024);await page.waitForFunction(([x,y])=>window.__kyoto && Math.hypot(window.__kyoto.position[0]-x,window.__kyoto.position[1]-y)<20,[x,y],{timeout:10000});};
+ await page.goto('http://127.0.0.1:8765/?qa=1');
+ await page.waitForFunction(()=>window.__kyoto?.menu==='title',{},{timeout:60000});
+ await page.evaluate(()=>connectPad());await page.waitForTimeout(500);await button(0);
+ await page.waitForFunction(()=>window.__kyoto?.menu==='');await phase(0);await page.screenshot({path:path.join(output,'kyoto-preview.png')});
+ const before=await page.evaluate(()=>__kyoto.position[0]);
+ await page.evaluate(()=>{testPad.axes[0]=1});await page.waitForTimeout(420);await page.evaluate(()=>{testPad.axes[0]=0});await page.waitForTimeout(400);
+ assert((await page.evaluate(()=>__kyoto.position[0]))>before+30,'Left stick moves player');
+ await button(3);await page.waitForFunction(()=>__kyoto.pets===1);
+ await button(0);await phase(1);await button(0);await phase(4);
+ await button(0);await phase(5);await button(0);await phase(7);
+ await walk(685,550);await button(2);await phase(9);
+ await page.waitForTimeout(700);await button(0);await phase(10);
+ await page.screenshot({path:path.join(output,'kyoto-gameplay.png')});
+ await walk(666,445);await button(0);await phase(12);
+ await button(9);await page.waitForFunction(()=>__kyoto.menu==='pause');await button(0);await page.waitForFunction(()=>__kyoto.menu==='');
+ await page.waitForTimeout(1800);
+ await page.reload();await page.waitForFunction(()=>window.__kyoto?.menu==='title',{},{timeout:60000});await page.evaluate(()=>connectPad());await page.waitForTimeout(500);await button(0);await phase(12);
+ assert.equal(await page.evaluate(()=>__kyoto.pets),1,'Save restores optional interactions');
+ await walk(475,596);await button(0);await phase(13);await walk(397,606);await button(0);await phase(14);
+ await page.waitForFunction(()=>__kyoto.menu==='complete');
+ await page.screenshot({path:path.join(output,'kyoto-ending.png')});
+ assert.deepEqual(errors,[],'No browser runtime errors');
+ console.log('PASS: simulated standard gamepad (stick, A, X, Y, Menu), complete opening, 1280x800 layout, pause/resume, persistent save/reload, no runtime errors');
+ await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

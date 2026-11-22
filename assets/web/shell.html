@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#100518"><title>Kyoto & the Midnight Signal</title><link rel="icon" href="data:,">
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#100518;color:#f5e6cf;font-family:Georgia,serif}canvas{display:block;width:100%;height:100%;outline:0}#status{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;background:#100518}h1{font-weight:400;font-size:clamp(24px,4vw,40px);margin:0}small{font:13px system-ui;letter-spacing:3px;color:#c29fae}progress{width:220px;height:5px;accent-color:#d8a1b4}#notice{max-width:500px;padding:20px;text-align:center;font:15px/1.6 system-ui;color:#dfbdcc}noscript{position:fixed;inset:40%;font:20px system-ui}
+</style></head><body>
+<canvas id="canvas" aria-label="Kyoto and the Midnight Signal. Use WASD or a controller to move, E or A to interact, Q or X to ask Kyoto, Esc or Menu to pause."></canvas>
+<noscript>This game needs JavaScript enabled.</noscript>
+<div id="status" role="status"><small>NEON AFTER HOURS</small><h1>Kyoto & the midnight signal</h1><progress id="progress"></progress><div id="notice">Opening the apartment…</div></div>
+<script src="$GODOT_URL"></script><script>
+const config=$GODOT_CONFIG;
+const engine=new Engine(config);
+const notice=document.getElementById('notice');
+function failed(error){notice.textContent='The game could not start. '+String(error);document.getElementById('progress').hidden=true;console.error(error);}
+if(location.protocol==='file:'){notice.textContent='To play, run play.py from the extracted download. The game opens in your browser automatically.';document.getElementById('progress').hidden=true;}
+else {
+ const missing=Engine.getMissingFeatures({threads:false});
+ if(missing.length)failed('This browser needs '+missing.join(', ')+'. Try a current Chrome, Edge or Firefox.');
+ else engine.startGame({onProgress:(loaded,total)=>{const p=document.getElementById('progress');if(total){p.max=total;p.value=loaded;}}}).then(()=>{document.getElementById('status').remove();document.getElementById('canvas').focus();}).catch(failed);
+}
+</script></body></html>

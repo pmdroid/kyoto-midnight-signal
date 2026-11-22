@@ -1,0 +1,17 @@
+# Generated Godot state and exports
+.godot/
+.templates/
+build/
+export_credentials.cfg
+
+# Local dependencies and caches
+node_modules/
+__pycache__/
+*.py[cod]
+*.log
+.DS_Store
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example

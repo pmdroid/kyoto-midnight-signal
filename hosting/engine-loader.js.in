@@ -1,0 +1,22 @@
+/* The Godot engine exceeds a single static asset's size limit uncompressed.
+   Decode its official gzip bytes in the browser, preserving the original wasm. */
+(() => {
+  'use strict';
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  const engineUrl = new URL('index.wasm', document.baseURI);
+  const compressedUrl = new URL('index.wasm.gz', document.baseURI);
+  globalThis.fetch = async function(input, options) {
+    const url = new URL(input instanceof Request ? input.url : String(input), document.baseURI);
+    if (url.origin !== engineUrl.origin || url.pathname !== engineUrl.pathname) {
+      return nativeFetch(input, options);
+    }
+    if (typeof DecompressionStream !== 'function') {
+      throw new Error('Please use a current Chrome, Edge or Firefox browser to play.');
+    }
+    const response = await nativeFetch(compressedUrl, options);
+    if (!response.ok) throw new Error('The game engine could not download (' + response.status + '). Reload to try again.');
+    if (!response.body) throw new Error('The game engine download was empty. Reload to try again.');
+    const body = response.body.pipeThrough(new DecompressionStream('gzip'));
+    return new Response(body, {status:200, headers:{'Content-Type':'application/wasm','Content-Length':'__ENGINE_BYTES__'}});
+  };
+})();

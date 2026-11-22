@@ -1,0 +1,12 @@
+{
+  "name": "kyoto-opening-browser-checks",
+  "private": true,
+  "version": "0.2.0",
+  "scripts": {
+    "test:browser": "node tests/browser.cjs",
+    "test:controller": "node tests/controller.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}
